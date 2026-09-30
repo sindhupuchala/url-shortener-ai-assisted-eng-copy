@@ -1,0 +1,88 @@
+.card {
+  max-width: 520px;
+  margin: 3rem auto;
+  padding: 2rem;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  background: #fff;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+  margin-top: 0.5rem;
+}
+
+input {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+button {
+  margin-top: 1rem;
+  padding: 0.55rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #9db8f0;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #b91c1c;
+  margin-top: 1rem;
+}
+
+.result {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: #f0f7ff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.result a {
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.result button {
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.muted {
+  width: 100%;
+  color: #666;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+nav {
+  margin-top: 1.5rem;
+}
+
+nav a {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 0.9rem;
+}

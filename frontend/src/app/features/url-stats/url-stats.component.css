@@ -1,0 +1,83 @@
+.card {
+  max-width: 640px;
+  margin: 3rem auto;
+  padding: 2rem;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+h1 {
+  margin-bottom: 0.15rem;
+}
+
+.muted {
+  color: #666;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.total {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f0f7ff;
+  border-radius: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.total .number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.total .label {
+  color: #555;
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 100px 1fr 40px;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.date {
+  color: #555;
+}
+
+.bar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+  height: 12px;
+  overflow: hidden;
+}
+
+.bar {
+  background: #2563eb;
+  height: 100%;
+}
+
+.count {
+  text-align: right;
+  color: #333;
+}

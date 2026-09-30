@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: url-shortener
+  datasource:
+    url: jdbc:h2:file:./data/urlshortener;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+app:
+  base-url: http://localhost:8080
+  owner-id-header: X-Owner-Id
+  rate-limit:
+    capacity: 20
+    refill-per-minute: 20
+  redirect-cache:
+    max-size: 10000
+    ttl-minutes: 5
+  cleanup:
+    expired-retention-days: 30
+
+logging:
+  level:
+    com.urlshortener: INFO
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

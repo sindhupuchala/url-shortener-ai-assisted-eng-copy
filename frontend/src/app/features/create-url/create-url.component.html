@@ -1,0 +1,47 @@
+<section class="card">
+  <h1>Shorten a URL</h1>
+
+  <form (ngSubmit)="submit()" #form="ngForm">
+    <label for="originalUrl">Long URL</label>
+    <input
+      id="originalUrl"
+      name="originalUrl"
+      type="text"
+      placeholder="https://example.com/some/very/long/path"
+      [(ngModel)]="originalUrl"
+      required
+    />
+
+    <label for="customAlias">Custom alias (optional)</label>
+    <input
+      id="customAlias"
+      name="customAlias"
+      type="text"
+      placeholder="my-launch-link"
+      [(ngModel)]="customAlias"
+    />
+
+    <label for="expiresAt">Expires at (optional)</label>
+    <input id="expiresAt" name="expiresAt" type="datetime-local" [(ngModel)]="expiresAt" />
+
+    <button type="submit" [disabled]="submitting() || !originalUrl">
+      {{ submitting() ? 'Shortening...' : 'Shorten' }}
+    </button>
+  </form>
+
+  @if (errorMessage()) {
+    <p class="error">{{ errorMessage() }}</p>
+  }
+
+  @if (result(); as r) {
+    <div class="result">
+      <a [href]="r.shortUrl" target="_blank" rel="noopener">{{ r.shortUrl }}</a>
+      <button type="button" (click)="copyToClipboard()">{{ copied() ? 'Copied!' : 'Copy' }}</button>
+      <p class="muted">Points to: {{ r.originalUrl }}</p>
+    </div>
+  }
+
+  <nav>
+    <a routerLink="/urls">View my links</a>
+  </nav>
+</section>

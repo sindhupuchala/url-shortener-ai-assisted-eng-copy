@@ -1,0 +1,10 @@
+.topbar {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e2e2e2;
+  background: #fff;
+}
+
+.brand {
+  font-weight: 700;
+  color: #1d4ed8;
+}

@@ -1,0 +1,37 @@
+<section class="card">
+  <div class="header">
+    <h1>My links</h1>
+    <a routerLink="/">+ New link</a>
+  </div>
+
+  @if (loading()) {
+    <p class="muted">Loading...</p>
+  } @else if (errorMessage()) {
+    <p class="error">{{ errorMessage() }}</p>
+  } @else if (urls().length === 0) {
+    <p class="muted">You haven't created any links yet.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>Short link</th>
+          <th>Destination</th>
+          <th>Clicks</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (url of urls(); track url.code) {
+          <tr>
+            <td><a [href]="url.shortUrl" target="_blank" rel="noopener">{{ url.shortUrl }}</a></td>
+            <td class="destination">{{ url.originalUrl }}</td>
+            <td>
+              <a [routerLink]="['/stats', url.code]">{{ url.totalClicks }}</a>
+            </td>
+            <td>{{ url.createdAt | date: 'short' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>
