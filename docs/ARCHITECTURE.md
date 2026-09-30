@@ -45,6 +45,10 @@ flowchart LR
 - **ClickRecorder** — async click write, off the redirect request thread.
 - **ExpiredUrlCleanupJob** — daily purge of long-expired rows (retention window, not immediate delete).
 - **GlobalExceptionHandler** — single place mapping domain exceptions to HTTP status + JSON shape.
+- **OrchestrationController / WorkflowOrchestrator** — persisted SDLC run snapshots, dependency-ready
+    waves, human approval gates, replan/safe-stop/rollback controls, and reliability metrics.
+- **WorkflowAgent** — adapter boundary for stage workers. The included deterministic implementation
+    produces reviewable demo artifacts without external model calls or source-tree writes.
 
 ## Request flow: create
 
@@ -134,3 +138,31 @@ Built as three sequential passes over one codebase (not three separate demos) �
 
 Each pass was compiled, unit-tested, integration-tested, and manually smoke-tested via curl before
 moving to the next, so later passes never built on unverified code.
+
+## Governed workflow control flow
+
+The Workflow Lab at `/orchestrator` drives a persisted run through this task graph:
+
+```mermaid
+flowchart LR
+    REQ[Normalize requirements] --> ARCH[Analyze architecture]
+    ARCH -->|human approval| IMPL[Prepare implementation]
+    IMPL --> TEST[Validate changes]
+    IMPL --> DOCS[Generate documentation]
+    TEST --> GATE[Release readiness]
+    DOCS --> GATE
+    GATE -->|human approval| DONE[Complete]
+```
+
+Each advance request executes one dependency-ready wave. The test and documentation workers run
+concurrently and must both finish before release readiness becomes approvable. Requirements are
+length-limited and checked for likely secrets before persistence. Every transition appends an event
+with actor, timestamp, task, and plan revision. Replanning increments the revision, rebuilds tasks,
+and retains prior events. Safe stop takes effect between waves; rollback withdraws generated demo
+artifacts while preserving the event history.
+
+Workflow state and events are stored in the same H2 database as the shortener. Metrics expose
+completed-run success rate, retry and rollback counts/rates, recovery time after safe-stop/failure,
+and average terminal end-to-end latency. This is demonstrable traceability, not a tamper-proof
+audit system: reviewer identity is not authenticated, storage is single-node H2, and workers are
+deterministic adapters rather than an LLM-backed agent pool.

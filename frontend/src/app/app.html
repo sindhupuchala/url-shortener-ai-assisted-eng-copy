@@ -1,4 +1,9 @@
 <header class="topbar">
-  <span class="brand">url-shortener</span>
+  <a class="brand" routerLink="/">url-shortener</a>
+  <nav aria-label="Main navigation">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Shorten</a>
+    <a routerLink="/urls" routerLinkActive="active">My links</a>
+    <a routerLink="/orchestrator" routerLinkActive="active">Workflow lab</a>
+  </nav>
 </header>
 <router-outlet />

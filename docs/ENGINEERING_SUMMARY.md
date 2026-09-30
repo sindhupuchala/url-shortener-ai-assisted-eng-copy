@@ -25,10 +25,13 @@ against Scenario 1 code that hadn't already passed its own tests, and likewise f
   log filter.
 - **Frontend** (`frontend/`, Angular, standalone components + signals): 3 routed feature
   components (create, list, stats), 2 core services, an HTTP interceptor for the owner-id header.
-- **Tests**: 9 backend test classes / 34 test methods (unit + `@SpringBootTest` integration); 5
+- **Tests**: 10 backend test classes / 38 test methods (unit + `@SpringBootTest` integration); 5
   frontend spec files / 9 tests.
 - **API docs**: springdoc-openapi → live Swagger UI at `/swagger-ui.html`, satisfying the
   API/schema definitions deliverable without a hand-maintained spec that could drift from the code.
+- **Workflow Lab**: persisted workflow snapshots, explicit dependency graph, parallel task waves,
+  approvals, event lineage, replan/safe-stop/rollback controls, and reliability metrics at
+  `/api/orchestration`.
 - **Docs**: this file, `docs/ARCHITECTURE.md`, `docs/SCENARIOS.md`, root `README.md`.
 
 ## Risks, trade-offs, and how they were handled
@@ -43,6 +46,7 @@ against Scenario 1 code that hadn't already passed its own tests, and likewise f
 | H2 file DB, not Postgres | Zero-infra local run was prioritized for a 2–3 day prototype. Flyway migrations mean the swap is a datasource config change, not a schema rewrite — but H2/Postgres SQL-dialect differences haven't been tested (this project only runs against H2, in-memory for tests and file-based for dev). |
 | Redirect route (`/{code}`) is a catch-all on the backend root | Correct for how a real short-link service is deployed (redirect on the short domain itself). If the Angular build were ever served from the *same* origin as this API, `/urls`, `/stats/*`, etc. would need to be registered before the catch-all redirect route to avoid being swallowed by it. Not an issue in the current two-process dev setup (`:4200` / `:8080`). |
 | Expired-link cleanup is a retention window, not immediate deletion | Deliberate: an expiry set by mistake is recoverable for `expired-retention-days` (30, by default) before the row is actually purged. |
+| Orchestration demo is not a production agent platform | Workers are deterministic adapters with no provider calls or repository writes. Reviewer names are not authenticated, H2 is single-node, and the event log is not tamper-evident. Production needs authenticated approvals, immutable audit storage, distributed execution, and compensation for external side effects. |
 
 ## Assumptions
 
@@ -62,6 +66,11 @@ against Scenario 1 code that hadn't already passed its own tests, and likewise f
 
 - No CI pipeline or containerization (Docker/Compose) — out of scope to keep "runnable end-to-end"
   reducible to `mvn spring-boot:run` + `npm start` with no additional infra. A natural next step.
+- Workflow workers are deterministic demonstration adapters, not LLM-backed agents. The graph,
+  gates, state transitions, and controls are executable; agent quality, model selection, token/cost
+  budgets, and provider failure behavior are not evaluated.
+- Workflow state is stored as H2 snapshots and transitions are serialized in one application
+  instance. Safe stop is cooperative between waves, not a preemptive cancellation mechanism.
 - No load/performance testing was run; the cache and rate limiter are sized for demonstration, not
   benchmarked against a target QPS.
 - Frontend test coverage is component-level and intentionally not exhaustive (happy path + one

@@ -130,7 +130,6 @@ counts per link, and a "my links" dashboard.
   returns only that owner's link with the matching click count.
 
 ---
-
 ## Scenario 3 — Ambiguous: "make sure this can survive real traffic and doesn't get abused"
 
 ### Requirement understanding — interpreting before implementing
@@ -163,14 +162,12 @@ five testable acceptance criteria, agreed before any code was written:
 
 ### AI-assisted execution & traceability
 
-- **Rejected the plan's own original design, on review:** the approved plan called for a
   standalone `SafeUrlValidator` alongside the existing `ValidUrlValidator`. Building it, that would
   have meant two validators doing overlapping URL-shape checks — not how an engineer would actually
   evolve a codebase. Instead, `ValidUrlValidator` itself was tightened in place (scheme allow-list
   added to the existing check), with a comment explaining the change is part of the Scenario 3
   hardening pass. The plan deviation is called out here rather than silently diverging from what
   was approved.
-- **A caching design decision made explicitly to avoid a correctness bug:** the obvious
   implementation is `@Cacheable` directly on `UrlService.resolve()`. That would cache the *whole*
   method, including the expiry check inside it — meaning an expired link could keep 302-ing for up
   to the cache's 5-minute TTL after its `expiresAt` had passed. Instead, only the raw DB lookup is
@@ -179,7 +176,6 @@ five testable acceptance criteria, agreed before any code was written:
   entirely), and `resolve()` re-checks `isExpired()` fresh against the cached entity on every call.
   This is the one piece of Scenario 3 where the "obvious" first draft was rejected before it was
   even written, because tracing through the caching semantics surfaced the bug on paper.
-- **A test-isolation bug caught before it caused a flaky suite:** `@SpringBootTest` caches the
   Spring context (and therefore the singleton `RateLimiter`) across test classes that share
   configuration. Every MockMvc request resolves to the same fake remote address, so every
   `POST /api/urls` across *every* integration test class draws from the *same* token bucket if they
@@ -189,20 +185,47 @@ five testable acceptance criteria, agreed before any code was written:
   `@SpringBootTest(properties = {...})` override, which Spring's test context cache keys on
   separately, isolating its tiny 3-request capacity from the ~9 POSTs the rest of the suite makes
   against the default 20/min configuration.
-- **Generated and kept:** `RateLimiter`'s token-bucket math, `ExpiredUrlCleanupJob`,
   `RequestLoggingFilter`.
 
 ### Validation
 
-- `mvn test`: 9 test classes, 34 test methods, all green — including a new
   `RateLimitIntegrationTest` (isolated context, asserts 429 + `Retry-After` on the 4th request
   against a capacity-3 bucket) and `ReliabilityIntegrationTest` (asserts 400 for a `javascript:`
   URL, and 410 for a link whose `expiresAt` was pushed into the past directly via the repository —
   deterministic, no `Thread.sleep`).
-- `RateLimiterTest` and the extended `ValidUrlValidatorTest` cover the logic as pure unit tests,
   independent of Spring.
-- Manual smoke test against a live server: `javascript:` payload → 400 with the field-level
   message (this POST also consumed one rate-limit token, since the interceptor runs before
   request-body validation); 21 further rapid `POST /api/urls` calls → 19× `201` then `429` for the
   rest, consistent with the configured 20/min capacity minus the token already spent on the
   rejected request above.
+
+---
+
+## Workflow Lab — governed SDLC execution
+
+The `/orchestrator` console demonstrates the assignment's orchestration requirements against a
+versioned, persisted run. Choose any of the three scenario types, submit a requirement, and advance
+one dependency-ready wave at a time. The graph is explicit: requirements → architecture → approved
+implementation → parallel tests and documentation → synchronized, approved release readiness.
+
+- **Governance:** implementation and release are high-risk tasks and cannot execute without a
+  reviewer decision. Rejection stops the run. Requirement length and secret-like values are checked
+  before the request is stored.
+- **Context and lineage:** each worker receives upstream artifact outputs. Events include actor,
+  action, timestamp, task, and plan revision. Replanning invalidates prior task outputs, increments
+  the revision, and retains prior events.
+- **Reliability controls:** each worker has at most two attempts. The console can inject a transient
+  test failure or a documentation failure to demonstrate retry and fallback. Reviewers can safe-stop
+  between waves, resume, or withdraw generated artifacts with rollback.
+- **Metrics:** success rate, retry count/rate, rollback count/rate, mean recovery time, and average
+  end-to-end latency are exposed in the console and at `GET /api/orchestration/metrics`.
+- **Validation:** `WorkflowOrchestratorTest` exercises dependency gates, the parallel test/docs
+  wave, approval, retries, fallback, replan lineage, safe-stop/resume, rollback, and secret rejection.
+
+The included `DeterministicDemoAgent` is a runnable stand-in behind the `WorkflowAgent` boundary. It
+creates inspectable artifacts but does not call a hosted model or alter source files. Safe-stop is
+wave-boundary cooperative; already-running external work cannot be interrupted. Reviewer names are
+not authenticated, the event log is not tamper-evident, and the H2-backed prototype is single-node.
+A production deployment would add authenticated reviewers, immutable audit storage, distributed
+workers and leases, provider-backed agents, cost/time budgets, and compensation handlers for real
+repository or deployment side effects.

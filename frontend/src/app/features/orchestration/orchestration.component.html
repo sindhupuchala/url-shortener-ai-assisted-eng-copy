@@ -1,0 +1,192 @@
+<main class="orchestration-page">
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">ENGINEERING CONTROL PLANE</p>
+      <h1>Workflow lab</h1>
+      <p class="heading-copy">Requirement to release readiness, with review gates and a traceable run history.</p>
+    </div>
+    @if (metrics(); as summary) {
+      <div class="metrics-strip" aria-label="Reliability metrics">
+        <div><strong>{{ summary.successRatePercent | number: '1.0-1' }}%</strong><span>success</span></div>
+        <div><strong>{{ summary.retryFrequencyPercent | number: '1.0-1' }}%</strong><span>retry rate</span></div>
+        <div><strong>{{ summary.retryCount }}</strong><span>retries</span></div>
+        <div><strong>{{ summary.rollbackFrequencyPercent | number: '1.0-1' }}%</strong><span>rollback rate</span></div>
+        <div><strong>{{ summary.rollbackCount }}</strong><span>rollbacks</span></div>
+        <div><strong>{{ summary.meanTimeToRecoveryMs }} ms</strong><span>MTTR</span></div>
+        <div><strong>{{ summary.averageEndToEndLatencyMs }} ms</strong><span>avg latency</span></div>
+      </div>
+    }
+  </section>
+
+  <div class="console-layout">
+    <aside class="run-sidebar">
+      <form class="new-run" (ngSubmit)="createRun()">
+        <div class="section-heading">
+          <span class="section-index">01</span>
+          <h2>New run</h2>
+        </div>
+        <label for="scenario">Scenario</label>
+        <select id="scenario" name="scenario" [(ngModel)]="scenario">
+          <option value="GREENFIELD">Greenfield</option>
+          <option value="BROWNFIELD">Brownfield</option>
+          <option value="AMBIGUOUS">Ambiguous</option>
+        </select>
+        <label for="requirement">Requirement</label>
+        <textarea id="requirement" name="requirement" rows="4" maxlength="2000" [(ngModel)]="requirement"></textarea>
+        <label for="fault">Failure drill</label>
+        <select id="fault" name="fault" [(ngModel)]="demoFault">
+          <option value="NONE">No injected failure</option>
+          <option value="TRANSIENT_TEST_FAILURE">Retry test wave once</option>
+          <option value="DOCUMENTATION_FALLBACK">Force docs fallback</option>
+        </select>
+        <button class="primary-button" type="submit" [disabled]="busy() || !requirement.trim()">
+          Create workflow run
+        </button>
+        <p class="worker-note">Demo workers generate deterministic artifacts. They do not call an external model or modify source files.</p>
+      </form>
+
+      <section class="run-history">
+        <div class="section-heading">
+          <span class="section-index">02</span>
+          <h2>Run history</h2>
+        </div>
+        @if (runs().length === 0) {
+          <p class="empty-note">No workflow runs yet.</p>
+        } @else {
+          @for (run of runs(); track run.id) {
+            <button class="run-entry" [class.selected]="selectedRun()?.id === run.id" type="button" (click)="selectRun(run)">
+              <span class="run-entry-top"><strong>{{ run.scenario }}</strong><span class="status" [class]="'status ' + statusClass(run.status)">{{ run.status }}</span></span>
+              <span class="run-requirement">{{ run.requirement }}</span>
+              <span class="run-entry-meta">r{{ run.planRevision }} | {{ run.createdAt | date: 'short' }}</span>
+            </button>
+          }
+        }
+      </section>
+    </aside>
+
+    <section class="run-workspace">
+      @if (errorMessage()) {
+        <div class="error-banner" role="alert">{{ errorMessage() }}</div>
+      }
+
+      @if (selectedRun(); as run) {
+        <div class="run-titlebar">
+          <div>
+            <p class="eyebrow">{{ run.scenario }} | PLAN REVISION {{ run.planRevision }}</p>
+            <h2>{{ run.requirement }}</h2>
+            <p class="run-id">Run {{ run.id }}</p>
+          </div>
+          <span class="status large" [class]="'status large ' + statusClass(run.status)">{{ run.status }}</span>
+        </div>
+
+        <div class="action-bar">
+          <button class="primary-button" type="button" [disabled]="busy() || run.status !== 'READY'" (click)="advance()">
+            Advance next wave
+          </button>
+          @if (run.status === 'STOPPED') {
+            <button class="secondary-button" type="button" [disabled]="busy()" (click)="resume()">Resume</button>
+          } @else if (!isTerminal(run)) {
+            <button class="secondary-button" type="button" [disabled]="busy()" (click)="safeStop()">Safe stop</button>
+          }
+          @if (run.status !== 'ROLLED_BACK') {
+            <button class="danger-button" type="button" [disabled]="busy()" (click)="rollback()">Rollback artifacts</button>
+          }
+        </div>
+
+        @if (run.status === 'WAITING_APPROVAL') {
+          <section class="approval-gate" aria-labelledby="approval-title">
+            <div>
+              <p class="eyebrow">HUMAN CHECKPOINT</p>
+              <h3 id="approval-title">Approval required before high-impact work</h3>
+            </div>
+            <label for="reviewer">Reviewer</label>
+            <input id="reviewer" name="reviewer" [(ngModel)]="reviewer" />
+            @for (task of run.tasks; track task.id) {
+              @if (task.status === 'WAITING_APPROVAL') {
+                <div class="approval-row">
+                  <div><strong>{{ task.title }}</strong><span>{{ task.description }}</span></div>
+                  <div class="approval-actions">
+                    <button class="primary-button" type="button" [disabled]="busy() || !reviewer.trim()" (click)="review(task, true)">Approve</button>
+                    <button class="danger-button" type="button" [disabled]="busy() || !reviewer.trim()" (click)="review(task, false)">Reject</button>
+                  </div>
+                </div>
+              }
+            }
+          </section>
+        }
+
+        @if (run.status === 'STOPPED' && run.stopReason) {
+          <p class="stop-reason">Safe stop: {{ run.stopReason }}</p>
+        }
+
+        <section class="replan-strip">
+          <div>
+            <strong>Upstream requirement changed?</strong>
+            <span>Replanning invalidates artifacts but preserves prior decisions in the event log.</span>
+          </div>
+          <input aria-label="Revised requirement" name="revisedRequirement" [(ngModel)]="revisedRequirement" placeholder="Enter revised requirement" />
+          <button class="secondary-button" type="button" [disabled]="busy() || !revisedRequirement.trim()" (click)="replan()">Replan</button>
+        </section>
+
+        <section class="graph-section">
+          <div class="section-heading">
+            <span class="section-index">03</span>
+            <div><h3>Dependency graph</h3><p>Tasks execute when dependencies pass; peers in one wave run concurrently.</p></div>
+          </div>
+          <div class="workflow-graph">
+            @for (task of run.tasks; track task.id) {
+              <article class="task-node" [attr.data-task]="task.id" [class]="'task-node ' + statusClass(task.status)">
+                <div class="task-node-heading">
+                  <span class="task-status-mark">{{ task.status === 'SUCCEEDED' ? 'OK' : task.status === 'WAITING_APPROVAL' ? '!' : task.status === 'BLOCKED' ? '-' : 'RUN' }}</span>
+                  <strong>{{ task.title }}</strong>
+                </div>
+                <p class="task-agent">{{ task.agent }}</p>
+                <p class="task-dependencies">Depends on: {{ task.dependsOn.length ? task.dependsOn.join(', ') : 'run intake' }}</p>
+                <div class="task-footer"><span>{{ task.risk }} risk</span><span>{{ task.attempts }}/{{ task.maxAttempts }} attempts</span></div>
+                @if (task.approvedBy) { <p class="approval-by">Approved by {{ task.approvedBy }}</p> }
+              </article>
+            }
+          </div>
+        </section>
+
+        <section class="artifacts-section">
+          <div class="section-heading">
+            <span class="section-index">04</span>
+            <div><h3>Generated artifacts</h3><p>Outputs are tied to plan revision {{ run.planRevision }}.</p></div>
+          </div>
+          @for (task of run.tasks; track task.id) {
+            @if (task.output) {
+              <article class="artifact-row">
+                <div><strong>{{ task.title }}</strong><span>{{ task.agent }} | {{ task.latencyMs }} ms</span></div>
+                <pre>{{ task.output }}</pre>
+              </article>
+            }
+          }
+        </section>
+
+        <section class="audit-section">
+          <div class="section-heading">
+            <span class="section-index">05</span>
+            <div><h3>Decision and audit trail</h3><p>{{ run.events.length }} recorded events | revisions remain attributable.</p></div>
+          </div>
+          <ol class="event-list">
+            @for (event of run.events; track event.sequence) {
+              <li>
+                <time>{{ event.at | date: 'mediumTime' }}</time>
+                <span class="event-revision">r{{ event.planRevision }}</span>
+                <span class="event-type">{{ event.type }}</span>
+                <div><strong>{{ event.actor }}</strong><p>{{ event.detail }}</p></div>
+              </li>
+            }
+          </ol>
+        </section>
+      } @else {
+        <div class="empty-workspace">
+          <p class="eyebrow">NO RUN SELECTED</p>
+          <h2>Create a workflow to inspect its plan and execution evidence.</h2>
+          <p>Choose a scenario, enter a requirement, and create a run.</p>
+        </div>
+      }
+    </section>
+  </div>
+</main>

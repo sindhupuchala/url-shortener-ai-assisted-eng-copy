@@ -46,6 +46,28 @@ for the analytics dashboard.
 
 API docs (Swagger UI): `http://localhost:8080/swagger-ui.html`
 
+## Demonstrate the agentic workflow
+
+Open `http://localhost:4200/orchestrator` while both servers are running. Select Greenfield,
+Brownfield, or Ambiguous, enter a requirement, and create a workflow run. The run view shows its
+dependency graph, generated artifacts, approval gates, metrics, and event history.
+
+For a complete walkthrough:
+
+1. Advance twice: requirement normalization, then architecture analysis.
+2. Approve the implementation task at the high-impact review gate, then advance it.
+3. Advance the next wave: tests and documentation run concurrently and synchronize before release.
+4. Approve release readiness and advance once more to complete the run.
+
+Choose **Retry test wave once** or **Force docs fallback** under Failure drill to demonstrate
+bounded retries and fallback behavior. Replan after changing the requirement to create a new plan
+revision while retaining prior decision events. Safe stop/resume and artifact rollback are also
+available from the run controls.
+
+Workers are deterministic demo adapters behind a `WorkflowAgent` interface; they do not call an
+external model or modify repository files. The workflow runs without model credentials. Reviewer
+names are demonstration metadata, not authenticated identities.
+
 ## Run the tests
 
 ```bash
